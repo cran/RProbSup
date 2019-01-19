@@ -1,14 +1,14 @@
 Package: RProbSup
 Type: Package
 Title: Calculates Probability of Superiority
-Version: 1.0
+Version: 2.0
 Author: John Ruscio
 Maintainer: John Ruscio <ruscio@tcnj.edu>
 Description: The A() function calculates the A statistic, a nonparametric
     measure of effect size for two independent groups that’s also known as
     the probability of superiority (Ruscio, 2008), along with its standard
     error and a confidence interval constructed using bootstrap methods 
-    (Ruscio & Mullen, 2012). Additional functions are provided to calculate
+    (Ruscio & Mullen, 2012). Optional arguments can be specified to calculate
     variants of the A statistic developed for other research designs (e.g., 
     related samples, more than two independent groups or related samples; 
     Ruscio & Gera, 2013). 
@@ -19,6 +19,6 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 NeedsCompilation: no
-Packaged: 2018-11-22 16:56:17 UTC; oliviaortelli
+Packaged: 2019-01-19 15:02:40 UTC; oliviaortelli
 Repository: CRAN
-Date/Publication: 2018-12-03 09:32:48 UTC
+Date/Publication: 2019-01-19 15:30:03 UTC

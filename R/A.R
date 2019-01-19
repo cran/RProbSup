@@ -1,30 +1,115 @@
 ################################################################################
+A <- function(data, design = 1, statistic = 1, weights = FALSE, w = 0,
+              w1 = 0, w2 = 0, increase = FALSE, ref = 1, r = 0,
+              n.bootstrap = 1999, conf.level = .95, ci.method = 1, seed = 1) {
+  # Calculates probability of superiority (A), its standard error, and a
+  # confidence interval.
+  #
+  # Args:
+  #   data        : For a between subjects design, a matrix of cases (rows) by
+  #                 scores (column 1) and group codes (column 2). For a within
+  #                 subjects design, a matrix of scores with each sample in its
+  #                 own column (matrix).
+  #   design      : Design of experiment (scalar, default = 1 (for between
+  #                 subjects design), user can also call 2 (for within subjects
+  #                 design)).
+  #   statistic   : Statistic to be calculated (scalar, default = 1 (A),
+  #                 user can also call 2 (A.AAD), 3 (A.AAPD), 4 (A.IK), or
+  #                 5 (A.Ord)).
+  #   weights     : Whether to assign weights to cases (default = FALSE); if
+  #                 set to TRUE, data contains case weights in final column.
+  #   w           : Weights for cases (vector; default = 0).
+  #   w1          : Weights for cases in group 1 (vector; default = 0).
+  #   w2          : Weights for cases in group 2 (vector; default = 0).
+  #   increase    : Set to TRUE if scores are predicted to increase with group
+  #                 codes (default = FALSE).
+  #   ref         : Reference group (to compare to all others) (scalar,
+  #                 default = 1).
+  #   r           : Vector of proportions (vector, default = 0, represents equal
+  #                 proportions).
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for
+  #                 percentile)).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   Nothing; displays the A statistic, its estimated standard error, and the
+  #   confidence interval.
+  set.seed(seed)
+  if ((design == 1) & (statistic == 1)) {
+    x <- A1(data[(data[, 2] == 1), 1], data[(data[, 2] == 2), 1], weights,
+            w1, w2, n.bootstrap, conf.level, ci.method, seed)
+  }
+  if ((design == 1) & (statistic == 2)) {
+    x <- AAD1(data, r, weights, n.bootstrap, conf.level, ci.method, seed)
+  }
+  if ((design == 1) & (statistic == 3)) {
+    x <- AAPD1(data, weights, n.bootstrap, conf.level, ci.method, seed)
+  }
+  if ((design == 1) & (statistic == 4)) {
+    x <- IK1(data, ref, weights, n.bootstrap, conf.level, ci.method, seed)
+  }
+  if ((design == 1) & (statistic == 5)) {
+    x <- Ord1(data, weights, increase, n.bootstrap, conf.level, ci.method, seed)
+  }
+  if ((design == 2) & (statistic == 1)) {
+    x <- A2(data[, 1], data[, 2], weights, w, n.bootstrap, conf.level,
+            ci.method, seed)
+  }
+  if ((design == 2) & (statistic == 2)) {
+    x <- AAD2(data, r, weights, n.bootstrap, conf.level, ci.method, seed)
+  }
+  if ((design == 2) & (statistic == 3)) {
+    x <- AAPD2(data, weights, n.bootstrap, conf.level, ci.method, seed)
+  }
+  if ((design == 2) & (statistic == 4)) {
+    x <- IK2(data, ref, weights, n.bootstrap, conf.level, ci.method, seed)
+  }
+  if ((design == 2) & (statistic == 5)) {
+    x <- Ord2(data, weights, increase, n.bootstrap, conf.level, ci.method, seed)
+  }
+  cat("     A: ", round(x[1], 3), "\n")
+  cat("    SE: ", round(x[2], 3), "\n")
+  cat(100 * conf.level, "% CI:  ", round(x[3], 3), " to ", round(x[4], 3),
+      "\n", sep = "")
+  if (ci.method == 1) {
+    cat("         Constructed using BCA method with B = ", n.bootstrap,
+        " bootstrap samples\n", sep = "")
+  }
+  if (ci.method == 2) {
+    cat("         Constructed using percentile method with B = ", n.bootstrap,
+        " bootstrap samples\n", sep = "")
+  }
+}
+################################################################################
 A1 <- function(y1, y2, weights = FALSE, w1 = 0, w2 = 0, n.bootstrap = 1999,
-               conf.level = .95, method = "BCA", seed = 1) {
-# Calculates the standard error and constructs a confidence interval for the A
-# statistic for two groups using bootstrap methods.
-#
-# Args :
-#   y1          : Scores for group 1 (vector).
-#   y2          : Scores for group 2 (vector).
-#   weights     : Whether to assign weights to cases (default = FALSE).
-#   w1          : Weights for cases in group 1 (vector; default = 0).
-#   w2          : Weights for cases in group 2 (vector; default = 0).
-#   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
-#   conf.level  : Confidence level (scalar, default = .95).
-#   method      : Method used to construct confidence interval (character,
-#                 default = "BCA", user can also call "percentile").
-#   seed        : Random number seed (scalar, default = 1).
-#
-# Returns :
-#   Nothing; displays the A statistic, its estimated standard error, and the
-#   confidence interval.
-#
+               conf.level = .95, ci.method = 1, seed = 1) {
+  # Calculates the standard error and constructs a confidence interval for the A
+  # statistic for two groups using bootstrap methods.
+  #
+  # Args :
+  #   y1          : Scores for group 1 (vector).
+  #   y2          : Scores for group 2 (vector).
+  #   weights     : Whether to assign weights to cases (default = FALSE).
+  #   w1          : Weights for cases in group 1 (vector; default = 0).
+  #   w2          : Weights for cases in group 2 (vector; default = 0).
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (scalar, default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for percentile).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   A vector containing the A statistic, its estimated standard error, and the
+  #   upper and lower bounds of the confidence interval.
+  #
   n1 <- length(y1)
   n2 <- length(y2)
   if (!weights) {
-  	w1 <- rep(0, n1)
-  	w2 <- rep(0, n2)
+    w1 <- rep(0, n1)
+    w2 <- rep(0, n2)
   }
   set.seed(seed)
   a.obs <- CalcA1(y1, y2, weights, w1, w2)
@@ -53,9 +138,9 @@ A1 <- function(y1, y2, weights = FALSE, w1 = 0, w2 = 0, n.bootstrap = 1999,
     diff <- mean(jk) - jk
     a <- sum(diff ^ 3) / (6 * (sum(diff ^ 2)) ^ 1.5)
     alpha1 <- pnorm(z0 + (z0 + qnorm(alpha/2)) / (1 - a * (z0 +
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     alpha2 <- pnorm(z0 + (z0 - qnorm(alpha/2)) / (1 - a * (z0 -
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     if (is.na(alpha1))
       alpha1 <- alpha / 2
     if (is.na(alpha2))
@@ -67,42 +152,40 @@ A1 <- function(y1, y2, weights = FALSE, w1 = 0, w2 = 0, n.bootstrap = 1999,
       ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
     }
   }
-  if (method == "percentile") {
+  if (ci.method == 2) {
     alpha1 <- (1 - conf.level) / 2
     alpha2 <- 1 - alpha1
     ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
     ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
   }
-  cat("     A: ", round(a.obs, 3), "\n")
   se.a <- sd(a.boot)
-  cat("    SE: ", round(se.a, 3), "\n")
-  cat(100 * conf.level, "% CI:  ", round(ci.lower, 3), " to ",
-      round(ci.upper, 3), "\n", sep = "")
+  return (c(a.obs, se.a, ci.lower, ci.upper))
 }
 
 ################################################################################
 AAD1 <- function(y, r = 0, weights = FALSE, n.bootstrap = 1999,
-                 conf.level = .95, method = "BCA", seed = 1) {
-# Calculates the confidence interval for the A statistic for the average
-# absolute deviation for two or more groups.
-#
-# Args:
-#   y           : Matrix of cases (rows) by scores (column 1) and group codes
-#                 (column 2) (matrix).
-#   r           : Vector of proportions (default = 0, represents equal
-#                 proportions) (vector).
-#   weights     : Whether to assign weights to cases (default = FALSE); if
-#                 set to TRUE, y contains case weights in column 3.
-#   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
-#   conf.level  : Confidence level (scalar, default = .95).
-#   method      : Method used to construct confidence interval (character,
-#                 default = "BCA", user can also call "percentile").
-#   seed        : Random number seed (scalar, default = 1).
-#
-# Returns :
-#   Nothing; displays the A statistic, its estimated standard error, and the
-#   confidence interval.
-#
+                 conf.level = .95, ci.method = 1, seed = 1) {
+  # Calculates the confidence interval for the A statistic for the average
+  # absolute deviation for two or more groups.
+  #
+  # Args:
+  #   y           : Matrix of cases (rows) by scores (column 1) and group codes
+  #                 (column 2) (matrix).
+  #   r           : Vector of proportions (default = 0, represents equal
+  #                 proportions) (vector).
+  #   weights     : Whether to assign weights to cases (default = FALSE); if
+  #                 set to TRUE, y contains case weights in column 3.
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (scalar, default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for
+  #                 percentile)).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   A vector containing the A statistic, its estimated standard error, and the
+  #   upper and lower bounds of the confidence interval.
+  #
   set.seed(seed)
   gr <- sort(unique(y[,2]))
   k <- length(gr)
@@ -136,9 +219,9 @@ AAD1 <- function(y, r = 0, weights = FALSE, n.bootstrap = 1999,
     diff <- mean(jk) - jk
     a <- sum(diff ^ 3) / (6 * (sum(diff ^ 2)) ^ 1.5)
     alpha1 <- pnorm(z0 + (z0 + qnorm(alpha/2)) / (1 -
-                    a * (z0 + qnorm(alpha/2))))
+                                                    a * (z0 + qnorm(alpha/2))))
     alpha2 <- pnorm(z0 + (z0 - qnorm(alpha/2)) / (1 -
-                    a * (z0 - qnorm(alpha/2))))
+                                                    a * (z0 - qnorm(alpha/2))))
     if (is.na(alpha1))
       alpha1 <- alpha / 2
     if (is.na(alpha2))
@@ -150,40 +233,38 @@ AAD1 <- function(y, r = 0, weights = FALSE, n.bootstrap = 1999,
       ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
     }
   }
-  if (method == "percentile") {
+  if (ci.method == 2) {
     alpha1 <- (1 - conf.level) / 2
     alpha2 <- 1 - alpha1
     ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
     ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
   }
-  cat("     A: ", round(a.obs, 3), "\n")
   se.a <- sd(a.boot)
-  cat("    SE: ", round(se.a, 3), "\n")
-  cat(100 * conf.level, "% CI:  ", round(ci.lower, 3), " to ",
-      round(ci.upper, 3), "\n", sep = "")
+  return (c(a.obs, se.a, ci.lower, ci.upper))
 }
 
 ################################################################################
 AAPD1 <- function(y, weights = FALSE, n.bootstrap = 1999, conf.level = .95,
-                  method = "BCA", seed = 1) {
-# Calculates the confidence interval for the A statistic for the average
-# absolute paired deviation for two or more groups.
-#
-# Args:
-#   y           : Matrix of cases (rows) by scores (column 1) and group codes
-#                 (column 2) (matrix).
-#   weights     : Whether to assign weights to cases (default = FALSE); if
-#                 set to TRUE, y contains case weights in column 3.
-#   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
-#   conf.level  : Confidence level (default = .95).
-#   method      : Method used to construct confidence interval (character,
-#                 default = "BCA", user can also call "percentile").
-#   seed        : Random number seed (scalar, default = 1).
-#
-# Returns :
-#   Nothing; displays the A statistic, its estimated standard error, and the
-#   confidence interval.
-#
+                  ci.method = 1, seed = 1) {
+  # Calculates the confidence interval for the A statistic for the average
+  # absolute paired deviation for two or more groups.
+  #
+  # Args:
+  #   y           : Matrix of cases (rows) by scores (column 1) and group codes
+  #                 (column 2) (matrix).
+  #   weights     : Whether to assign weights to cases (default = FALSE); if
+  #                 set to TRUE, y contains case weights in column 3.
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for
+  #                 percentile)).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   A vector containing the A statistic, its estimated standard error, and the
+  #   upper and lower bounds of the confidence interval.
+  #
   set.seed(seed)
   gr <- sort(unique(y[,2]))
   k <- length(gr)
@@ -217,9 +298,9 @@ AAPD1 <- function(y, weights = FALSE, n.bootstrap = 1999, conf.level = .95,
     diff <- mean(jk) - jk
     a <- sum(diff ^ 3) / (6 * (sum(diff ^ 2)) ^ 1.5)
     alpha1 <- pnorm(z0 + (z0 + qnorm(alpha/2)) / (1 -
-                    a * (z0 + qnorm(alpha/2))))
+                                                    a * (z0 + qnorm(alpha/2))))
     alpha2 <- pnorm(z0 + (z0 - qnorm(alpha/2)) / (1 -
-                    a * (z0 - qnorm(alpha/2))))
+                                                    a * (z0 - qnorm(alpha/2))))
     if (is.na(alpha1))
       alpha1 <- alpha / 2
     if (is.na(alpha2))
@@ -231,42 +312,40 @@ AAPD1 <- function(y, weights = FALSE, n.bootstrap = 1999, conf.level = .95,
       ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
     }
   }
-  if (method == "percentile") {
+  if (ci.method == 2) {
     alpha1 <- (1 - conf.level) / 2
     alpha2 <- 1 - alpha1
     ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
     ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
   }
-  cat("     A: ", round(a.obs, 3), "\n")
   se.a <- sd(a.boot)
-  cat("    SE: ", round(se.a, 3), "\n")
-  cat(100 * conf.level, "% CI:  ", round(ci.lower, 3), " to ",
-      round(ci.upper, 3), "\n", sep = "")
+  return (c(a.obs, se.a, ci.lower, ci.upper))
 }
 
 ################################################################################
 IK1 <- function(y, ref = 1, weights = FALSE, n.bootstrap = 1999,
-                conf.level = .95, method = "BCA", seed = 1) {
-# Calculates the confidence interval for the A statistic while singling out one
-# group for two or more groups.
-#
-# Args:
-#   y           : Matrix of cases (rows) by scores (column 1) and group codes
-#                 (column 2) (matrix).
-#   ref         : Reference group (to compare to all others) (scalar,
-#                 default = 1).
-#   weights     : Whether to assign weights to cases (default = FALSE); if
-#                 set to TRUE, y contains case weights in column 3.
-#   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
-#   conf.level  : Confidence level (default = .95).
-#   method      : Method used to construct confidence interval (character,
-#                 default = "BCA", user can also call "percentile").
-#   seed        : Random number seed (scalar, default = 1).
-#
-# Returns :
-#   Nothing; displays the A statistic, its estimated standard error, and the
-#   confidence interval.
-#
+                conf.level = .95, ci.method = 1, seed = 1) {
+  # Calculates the confidence interval for the A statistic while singling out one
+  # group for two or more groups.
+  #
+  # Args:
+  #   y           : Matrix of cases (rows) by scores (column 1) and group codes
+  #                 (column 2) (matrix).
+  #   ref         : Reference group (to compare to all others) (scalar,
+  #                 default = 1).
+  #   weights     : Whether to assign weights to cases (default = FALSE); if
+  #                 set to TRUE, y contains case weights in column 3.
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for
+  #                 percentile)).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   A vector containing the A statistic, its estimated standard error, and the
+  #   upper and lower bounds of the confidence interval.
+  #
   set.seed(seed)
   gr <- sort(unique(y[,2]))
   k <- length(gr)
@@ -300,56 +379,54 @@ IK1 <- function(y, ref = 1, weights = FALSE, n.bootstrap = 1999,
     diff <- mean(jk) - jk
     a <- sum(diff ^ 3) / (6 * (sum(diff ^ 2)) ^ 1.5)
     alpha1 <- pnorm(z0 + (z0 + qnorm(alpha/2)) / (1 - a * (z0 +
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     alpha2 <- pnorm(z0 + (z0 - qnorm(alpha/2)) / (1 - a * (z0 -
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     if (is.na(alpha1))
       alpha1 <- alpha / 2
     if (is.na(alpha2))
       alpha2 <- 1 - alpha / 2
     if (round(alpha1 * n.bootstrap) < 1) {
-    	  ci.lower <- a.boot[1]
+      ci.lower <- a.boot[1]
     } else {
-    	  ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
+      ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
       ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
     }
   }
-  if (method == "percentile") {
+  if (ci.method == 2) {
     alpha1 <- (1 - conf.level) / 2
     alpha2 <- 1 - alpha1
     ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
     ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
   }
-  cat("     A: ", round(a.obs, 3), "\n")
   se.a <- sd(a.boot)
-  cat("    SE: ", round(se.a, 3), "\n")
-  cat(100 * conf.level, "% CI:  ", round(ci.lower, 3), " to ",
-      round(ci.upper, 3), "\n", sep = "")
+  return (c(a.obs, se.a, ci.lower, ci.upper))
 }
 
 ################################################################################
 Ord1 <- function(y, weights = FALSE, increase = FALSE, n.bootstrap = 1999,
-                 conf.level = .95, method = "BCA", seed = 1) {
-# Calculates the confidence interval for the ordinal comparison of the A
-# statistic for two or more groups.
-#
-# Args:
-#   y           : Matrix of cases (rows) by scores (column 1) and group codes
-#                 (column 2) (matrix).
-#   weights     : Whether to assign weights to cases (default = FALSE); if
-#                 set to TRUE, y contains case weights in column 3.
-#   increase    : Set to TRUE if scores are predicted to increase with group
-#                 codes (default = FALSE).
-#   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
-#   conf.level  : Confidence level (default = .95).
-#   method      : Method used to construct confidence interval (character,
-#                 default = "BCA", user can also call "percentile").
-#   seed        : Random number seed (scalar, default = 1).
-#
-# Returns :
-#   Nothing; displays the A statistic, its estimated standard error, and the
-#   confidence interval.
-#
+                 conf.level = .95, ci.method = 1, seed = 1) {
+  # Calculates the confidence interval for the ordinal comparison of the A
+  # statistic for two or more groups.
+  #
+  # Args:
+  #   y           : Matrix of cases (rows) by scores (column 1) and group codes
+  #                 (column 2) (matrix).
+  #   weights     : Whether to assign weights to cases (default = FALSE); if
+  #                 set to TRUE, y contains case weights in column 3.
+  #   increase    : Set to TRUE if scores are predicted to increase with group
+  #                 codes (default = FALSE).
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for
+  #                 percentile)).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   A vector containing the A statistic, its estimated standard error, and the
+  #   upper and lower bounds of the confidence interval.
+  #
   set.seed(seed)
   gr <- sort(unique(y[,2]))
   k <- length(gr)
@@ -371,8 +448,8 @@ Ord1 <- function(y, weights = FALSE, increase = FALSE, n.bootstrap = 1999,
   if (min(a.boot) == max(a.boot))
     ci.lower <- ci.upper <- a.boot[1]
   if ((a.obs < min(a.boot)) | (a.obs > max(a.boot))) {
-      ci.lower <- a.boot[round((alpha / 2) * n.bootstrap)]
-      ci.upper <- a.boot[round((1 - alpha / 2) * n.bootstrap)]
+    ci.lower <- a.boot[round((alpha / 2) * n.bootstrap)]
+    ci.upper <- a.boot[round((1 - alpha / 2) * n.bootstrap)]
   }
   if ((ci.lower == pi) & (ci.upper == pi)) {
     z0 <- qnorm(mean(a.boot < a.obs))
@@ -383,57 +460,55 @@ Ord1 <- function(y, weights = FALSE, increase = FALSE, n.bootstrap = 1999,
     diff <- mean(jk) - jk
     a <- sum(diff ^ 3) / (6 * (sum(diff ^ 2)) ^ 1.5)
     alpha1 <- pnorm(z0 + (z0 + qnorm(alpha/2)) / (1 - a * (z0 +
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     alpha2 <- pnorm(z0 + (z0 - qnorm(alpha/2)) / (1 - a * (z0 -
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     if (is.na(alpha1))
       alpha1 <- alpha / 2
     if (is.na(alpha2))
       alpha2 <- 1 - alpha / 2
     if (round(alpha1 * n.bootstrap) < 1) {
-    	  ci.lower <- a.boot[1]
-     } else {
-       ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
-       ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
-     }
+      ci.lower <- a.boot[1]
+    } else {
+      ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
+      ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
+    }
   }
-  if (method == "percentile") {
+  if (ci.method == 2) {
     alpha1 <- (1 - conf.level) / 2
     alpha2 <- 1 - alpha1
     ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
     ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
   }
-  cat("     A: ", round(a.obs, 3), "\n")
   se.a <- sd(a.boot)
-  cat("    SE: ", round(se.a, 3), "\n")
-  cat(100 * conf.level, "% CI:  ", round(ci.lower, 3), " to ",
-      round(ci.upper, 3), "\n", sep = "")
+  return (c(a.obs, se.a, ci.lower, ci.upper))
 }
 
 ################################################################################
 A2 <- function(y1, y2, weights = FALSE, w = 0, n.bootstrap = 1999,
-               conf.level = .95, method = "BCA", seed = 1) {
-# Calculates the standard error and constructs a confidence interval for the A
-# statistic for two correlated samples using bootstrap methods.
-#
-# Args :
-#   y1          : Scores for sample 1 (vector).
-#   y2          : Scores for sample 2 (vector).
-#   weights     : Whether to assign weights to cases (default = FALSE).
-#   w           : Weights for cases (vector; default = 0).
-#   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
-#   conf.level  : Confidence level (scalar, default = .95).
-#   method      : Method used to construct confidence interval (character,
-#                 default = "BCA", user can also call "percentile").
-#   seed        : Random number seed (scalar, default = 1).
-#
-# Returns :
-#   Nothing; displays the A statistic, its estimated standard error, and the
-#   confidence interval.
-#
+               conf.level = .95, ci.method = 1, seed = 1) {
+  # Calculates the standard error and constructs a confidence interval for the A
+  # statistic for two correlated samples using bootstrap methods.
+  #
+  # Args :
+  #   y1          : Scores for sample 1 (vector).
+  #   y2          : Scores for sample 2 (vector).
+  #   weights     : Whether to assign weights to cases (default = FALSE).
+  #   w           : Weights for cases (vector; default = 0).
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (scalar, default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for
+  #                 percentile)).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   A vector containing the A statistic, its estimated standard error, and the
+  #   upper and lower bounds of the confidence interval.
+  #
   n <- length(y1)
   if (!weights)
-  	w <- rep(0, n)
+    w <- rep(0, n)
   set.seed(seed)
   a.obs <- CalcA2(y1, y2, weights, w)
   alpha <- 1 - conf.level
@@ -460,9 +535,9 @@ A2 <- function(y1, y2, weights = FALSE, w = 0, n.bootstrap = 1999,
     diff <- mean(jk) - jk
     a <- sum(diff ^ 3) / (6 * (sum(diff ^ 2)) ^ 1.5)
     alpha1 <- pnorm(z0 + (z0 + qnorm(alpha/2)) / (1 - a * (z0 +
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     alpha2 <- pnorm(z0 + (z0 - qnorm(alpha/2)) / (1 - a * (z0 -
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     if (is.na(alpha1))
       alpha1 <- alpha / 2
     if (is.na(alpha2))
@@ -474,41 +549,39 @@ A2 <- function(y1, y2, weights = FALSE, w = 0, n.bootstrap = 1999,
       ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
     }
   }
-  if (method == "percentile") {
+  if (ci.method == 2) {
     alpha1 <- (1 - conf.level) / 2
     alpha2 <- 1 - alpha1
     ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
     ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
   }
-  cat("     A: ", round(a.obs, 3), "\n")
   se.a <- sd(a.boot)
-  cat("    SE: ", round(se.a, 3), "\n")
-  cat(100 * conf.level, "% CI:  ", round(ci.lower, 3), " to ",
-      round(ci.upper, 3), "\n", sep = "")
+  return (c(a.obs, se.a, ci.lower, ci.upper))
 }
 
 ################################################################################
 AAD2 <- function(y, r = 0, weights = FALSE, n.bootstrap = 1999,
-                 conf.level = .95, method = "BCA", seed = 1) {
-# Calculates the confidence interval for the A statistic for the average
-# absolute deviation for two or more correlated samples.
-#
-# Args:
-#   y           : Matrix of scores with each sample in its own column (matrix).
-#   r           : Vector of proportions (vector, default = 0, represents equal
-#                 proportions).
-#   weights     : Whether to assign weights to cases (default = FALSE); if
-#                 set to TRUE, y contains case weights in final column.
-#   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
-#   conf.level  : Confidence level (scalar, default = .95).
-#   method      : Method used to construct confidence interval (character,
-#                 default = "BCA", user can also call "percentile").
-#   seed        : Random number seed (scalar, default = 1).
-#
-# Returns :
-#   Nothing; displays the A statistic, its estimated standard error, and the
-#   confidence interval.
-#
+                 conf.level = .95, ci.method = 1, seed = 1) {
+  # Calculates the confidence interval for the A statistic for the average
+  # absolute deviation for two or more correlated samples.
+  #
+  # Args:
+  #   y           : Matrix of scores with each sample in its own column (matrix).
+  #   r           : Vector of proportions (vector, default = 0, represents equal
+  #                 proportions).
+  #   weights     : Whether to assign weights to cases (default = FALSE); if
+  #                 set to TRUE, y contains case weights in final column.
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (scalar, default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for
+  #                 percentile)).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   A vector containing the A statistic, its estimated standard error, and the
+  #   upper and lower bounds of the confidence interval.
+  #
   set.seed(seed)
   n <- dim(y)[1]
   k <- dim(y)[2]
@@ -538,9 +611,9 @@ AAD2 <- function(y, r = 0, weights = FALSE, n.bootstrap = 1999,
     diff <- mean(jk) - jk
     a <- sum(diff ^ 3) / (6 * (sum(diff ^ 2)) ^ 1.5)
     alpha1 <- pnorm(z0 + (z0 + qnorm(alpha/2)) / (1 - a * (z0 +
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     alpha2 <- pnorm(z0 + (z0 - qnorm(alpha/2)) / (1 - a * (z0 -
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     if (is.na(alpha1))
       alpha1 <- alpha / 2
     if (is.na(alpha2))
@@ -553,40 +626,38 @@ AAD2 <- function(y, r = 0, weights = FALSE, n.bootstrap = 1999,
       ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
     }
   }
-  if (method == "percentile") {
+  if (ci.method == 2) {
     alpha1 <- (1 - conf.level) / 2
     alpha2 <- 1 - alpha1
     ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
     ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
   }
-  cat("     A: ", round(a.obs, 3), "\n")
   se.a <- sd(a.boot)
-  cat("    SE: ", round(se.a, 3), "\n")
-  cat(100 * conf.level, "% CI:  ", round(ci.lower, 3), " to ",
-      round(ci.upper, 3), "\n", sep = "")
+  return (c(a.obs, se.a, ci.lower, ci.upper))
 }
 
 ################################################################################
 AAPD2 <- function(y, weights = FALSE, n.bootstrap = 1999, conf.level = .95,
-                  method = "BCA", seed = 1) {
-# Calculates the confidence interval for the A statistic for the average
-# absolute paired deviation for two or more correlated samples.
-#
-# Args:
-#   y           : Matrix of cases (rows) by scores (column 1) and group codes
-#                 (column 2) (matrix).
-#   weights     : Whether to assign weights to cases (default = FALSE); if
-#                 set to TRUE, y contains case weights in final column.
-#   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
-#   conf.level  : Confidence level (default = .95).
-#   method      : Method used to construct confidence interval (character,
-#                 default = "BCA", user can also call "percentile").
-#   seed        : Random number seed (scalar, default = 1).
-#
-# Returns :
-#   Nothing; displays the A statistic, its estimated standard error, and the
-#   confidence interval.
-#
+                  ci.method = 1, seed = 1) {
+  # Calculates the confidence interval for the A statistic for the average
+  # absolute paired deviation for two or more correlated samples.
+  #
+  # Args:
+  #   y           : Matrix of cases (rows) by scores (column 1) and group codes
+  #                 (column 2) (matrix).
+  #   weights     : Whether to assign weights to cases (default = FALSE); if
+  #                 set to TRUE, y contains case weights in final column.
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for
+  #                 percentile)).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   A vector containing the A statistic, its estimated standard error, and the
+  #   upper and lower bounds of the confidence interval.
+  #
   set.seed(seed)
   n <- dim(y)[1]
   k <- dim(y)[2]
@@ -616,9 +687,9 @@ AAPD2 <- function(y, weights = FALSE, n.bootstrap = 1999, conf.level = .95,
     diff <- mean(jk) - jk
     a <- sum(diff ^ 3) / (6 * (sum(diff ^ 2)) ^ 1.5)
     alpha1 <- pnorm(z0 + (z0 + qnorm(alpha/2)) / (1 - a * (z0 +
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     alpha2 <- pnorm(z0 + (z0 - qnorm(alpha/2)) / (1 - a * (z0 -
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     if (is.na(alpha1))
       alpha1 <- alpha / 2
     if (is.na(alpha2))
@@ -631,42 +702,40 @@ AAPD2 <- function(y, weights = FALSE, n.bootstrap = 1999, conf.level = .95,
       ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
     }
   }
-  if (method == "percentile") {
+  if (ci.method == 2) {
     alpha1 <- (1 - conf.level) / 2
     alpha2 <- 1 - alpha1
     ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
     ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
   }
-  cat("     A: ", round(a.obs, 3), "\n")
   se.a <- sd(a.boot)
-  cat("    SE: ", round(se.a, 3), "\n")
-  cat(100 * conf.level, "% CI:  ", round(ci.lower, 3), " to ",
-      round(ci.upper, 3), "\n", sep = "")
+  return (c(a.obs, se.a, ci.lower, ci.upper))
 }
 
 ################################################################################
 IK2 <- function(y, ref = 1, weights = FALSE, n.bootstrap = 1999,
-                conf.level = .95, method = "BCA", seed = 1) {
-# Calculates the confidence interval for the A statistic while singling out one
-# group for two or more correlated samples.
-#
-# Args:
-#   y           : Matrix of cases (rows) by scores (column 1) and group codes
-#                 (column 2) (matrix).
-#   ref         : reference group (to compare to all others) (scalar,
-#                 default = 1).
-#   weights     : Whether to assign weights to cases (default = FALSE); if
-#                 set to TRUE, y contains case weights in final column.
-#   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
-#   conf.level  : Confidence level (default = .95).
-#   method      : Method used to construct confidence interval (character,
-#                 default = "BCA", user can also call "percentile").
-#   seed        : Random number seed (scalar, default = 1).
-#
-# Returns :
-#   Nothing; displays the A statistic, its estimated standard error, and the
-#   confidence interval.
-#
+                conf.level = .95, ci.method = 1, seed = 1) {
+  # Calculates the confidence interval for the A statistic while singling out one
+  # group for two or more correlated samples.
+  #
+  # Args:
+  #   y           : Matrix of cases (rows) by scores (column 1) and group codes
+  #                 (column 2) (matrix).
+  #   ref         : reference group (to compare to all others) (scalar,
+  #                 default = 1).
+  #   weights     : Whether to assign weights to cases (default = FALSE); if
+  #                 set to TRUE, y contains case weights in final column.
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for
+  #                 percentile)).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   A vector containing the A statistic, its estimated standard error, and the
+  #   upper and lower bounds of the confidence interval.
+  #
   set.seed(seed)
   n <- dim(y)[1]
   k <- dim(y)[2]
@@ -697,56 +766,54 @@ IK2 <- function(y, ref = 1, weights = FALSE, n.bootstrap = 1999,
     diff <- mean(jk) - jk
     a <- sum(diff ^ 3) / (6 * (sum(diff ^ 2)) ^ 1.5)
     alpha1 <- pnorm(z0 + (z0 + qnorm(alpha/2)) / (1 - a * (z0 +
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     alpha2 <- pnorm(z0 + (z0 - qnorm(alpha/2)) / (1 - a * (z0 -
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     if (is.na(alpha1))
       alpha1 <- alpha / 2
     if (is.na(alpha2))
       alpha2 <- 1 - alpha / 2
     if (round(alpha1 * n.bootstrap) < 1) {
-    	  ci.lower <- a.boot[1]
+      ci.lower <- a.boot[1]
     } else {
-    	  ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
+      ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
       ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
     }
   }
-  if (method == "percentile") {
+  if (ci.method == 2) {
     alpha1 <- (1 - conf.level) / 2
     alpha2 <- 1 - alpha1
     ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
     ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
   }
-  cat("     A: ", round(a.obs, 3), "\n")
   se.a <- sd(a.boot)
-  cat("    SE: ", round(se.a, 3), "\n")
-  cat(100 * conf.level, "% CI:  ", round(ci.lower, 3), " to ",
-      round(ci.upper, 3), "\n", sep = "")
+  return (c(a.obs, se.a, ci.lower, ci.upper))
 }
 
 ################################################################################
 Ord2 <- function(y, weights = FALSE, increase = FALSE, n.bootstrap = 1999,
-                 conf.level = .95, method = "BCA", seed = 1) {
-# Calculates the confidence interval for the ordinal comparison of the A
-# statistic for two or more correlated samples.
-#
-# Args:
-#   y           : Matrix of cases (rows) by scores (column 1) and group codes
-#                 (column 2) (matrix).
-#   weights     : Whether to assign weights to cases (default = FALSE); if
-#                 set to TRUE, y contains case weights in final column.
-#   increase    : Set to TRUE if scores are predicted to increase with group
-#                 codes (default = FALSE).
-#   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
-#   conf.level  : Confidence level (default = .95).
-#   method      : Method used to construct confidence interval (character,
-#                 default = "BCA", user can also call "percentile").
-#   seed        : Random number seed (scalar, default = 1).
-#
-# Returns :
-#   Nothing; displays the A statistic, its estimated standard error, and the
-#   confidence interval.
-#
+                 conf.level = .95, ci.method = 1, seed = 1) {
+  # Calculates the confidence interval for the ordinal comparison of the A
+  # statistic for two or more correlated samples.
+  #
+  # Args:
+  #   y           : Matrix of cases (rows) by scores (column 1) and group codes
+  #                 (column 2) (matrix).
+  #   weights     : Whether to assign weights to cases (default = FALSE); if
+  #                 set to TRUE, y contains case weights in final column.
+  #   increase    : Set to TRUE if scores are predicted to increase with group
+  #                 codes (default = FALSE).
+  #   n.bootstrap : Number of bootstrap samples (scalar, default = 1999).
+  #   conf.level  : Confidence level (default = .95).
+  #   ci.method   : Method used to construct confidence interval (scalar,
+  #                 default = 1 (for BCA), user can also call 2 (for
+  #                 percentile)).
+  #   seed        : Random number seed (scalar, default = 1).
+  #
+  # Returns :
+  #   A vector containing the A statistic, its estimated standard error, and the
+  #   upper and lower bounds of the confidence interval.
+  #
   set.seed(seed)
   n <- dim(y)[1]
   k <- dim(y)[2]
@@ -776,9 +843,9 @@ Ord2 <- function(y, weights = FALSE, increase = FALSE, n.bootstrap = 1999,
     diff <- mean(jk) - jk
     a <- sum(diff ^ 3) / (6 * (sum(diff ^ 2)) ^ 1.5)
     alpha1 <- pnorm(z0 + (z0 + qnorm(alpha/2)) / (1 - a * (z0 +
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     alpha2 <- pnorm(z0 + (z0 - qnorm(alpha/2)) / (1 - a * (z0 -
-                    qnorm(alpha/2))))
+                                                             qnorm(alpha/2))))
     if (is.na(alpha1))
       alpha1 <- alpha / 2
     if (is.na(alpha2))
@@ -786,37 +853,34 @@ Ord2 <- function(y, weights = FALSE, increase = FALSE, n.bootstrap = 1999,
     if (round(alpha1 * n.bootstrap) < 1) {
       ci.lower <- a.boot[1]
     } else {
-    	  ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
+      ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
       ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
     }
   }
-  if (method == "percentile") {
+  if (ci.method == 2) {
     alpha1 <- (1 - conf.level) / 2
     alpha2 <- 1 - alpha1
     ci.lower <- a.boot[round(alpha1 * n.bootstrap)]
     ci.upper <- a.boot[round(alpha2 * n.bootstrap)]
   }
-  cat("     A: ", round(a.obs, 3), "\n")
   se.a <- sd(a.boot)
-  cat("    SE: ", round(se.a, 3), "\n")
-  cat(100 * conf.level, "% CI:  ", round(ci.lower, 3), " to ",
-      round(ci.upper, 3), "\n", sep = "")
+  return (c(a.obs, se.a, ci.lower, ci.upper))
 }
 
 ################################################################################
 CalcA1 <- function(y1, y2, weights = FALSE, w1 = 0, w2 = 0) {
-# Calculates the A statistic for 2 groups.
-#
-# Args:
-#   y1     : Scores for group 1 (vector).
-#   y2     : Scores for group 2 (vector).
-#   weights: Whether to weight cases (default = FALSE).
-#   w1     : Weights for group 1 (optional) (vector, default is 0).
-#   w2     : Weights for group 2 (optional) (vector, default is 0).
-#
-# Returns:
-# a : The A statistic
-#
+  # Calculates the A statistic for 2 groups.
+  #
+  # Args:
+  #   y1     : Scores for group 1 (vector).
+  #   y2     : Scores for group 2 (vector).
+  #   weights: Whether to weight cases (default = FALSE).
+  #   w1     : Weights for group 1 (optional) (vector, default is 0).
+  #   w2     : Weights for group 2 (optional) (vector, default is 0).
+  #
+  # Returns:
+  # a : The A statistic
+  #
   n1 <- length(y1)
   n2 <- length(y2)
   if (sum(w1) == 0) {
@@ -845,21 +909,21 @@ CalcA1 <- function(y1, y2, weights = FALSE, w1 = 0, w2 = 0) {
 
 ################################################################################
 CalcAAD1 <- function(y, r = 0, weights = FALSE) {
-# Calculates the A statistic for the average absolute deviation for two or more
-# groups. Note: This function is not meant to be called by the user, but is
-# called by AAD1.
-#
-# Args:
-#   y       : Matrix of cases (rows) by scores (column 1) and group codes
-#             (column 2) (matrix).
-#   r       : Vector of proportions (vector, default = 0, represents equal
-#             proportions).
-#   weights : Whether to assign weights to cases (default = FALSE); if
-#             set to TRUE, y contains case weights in column 3.
-#
-# Returns:
-#   a : The A statistic
-#
+  # Calculates the A statistic for the average absolute deviation for two or more
+  # groups. Note: This function is not meant to be called by the user, but is
+  # called by AAD1.
+  #
+  # Args:
+  #   y       : Matrix of cases (rows) by scores (column 1) and group codes
+  #             (column 2) (matrix).
+  #   r       : Vector of proportions (vector, default = 0, represents equal
+  #             proportions).
+  #   weights : Whether to assign weights to cases (default = FALSE); if
+  #             set to TRUE, y contains case weights in column 3.
+  #
+  # Returns:
+  #   a : The A statistic
+  #
   gr <- sort(unique(y[,2]))
   k <- length(gr)
   if ((sum(r) == 0) | (length(r) != k))
@@ -872,14 +936,14 @@ CalcAAD1 <- function(y, r = 0, weights = FALSE) {
     for (j in 1:k) {
       if (i != j) {
         g2 <- y[(y[,2] == gr[j]), 1]
-          if (!weights) {
-            a[i] <- a[i] + (r[j] / (1 - r[i])) * CalcA1(g1, g2)
-          } else {
-            w1 <- y[(y[,2] == gr[i]), 3]
-            w2 <- y[(y[,2] == gr[j]), 3]
-            a[i] <- a[i] + (r[j] / (1 - r[i])) * CalcA1(g1, g2, weights = TRUE,
-                    w1, w2)
-          }
+        if (!weights) {
+          a[i] <- a[i] + (r[j] / (1 - r[i])) * CalcA1(g1, g2)
+        } else {
+          w1 <- y[(y[,2] == gr[i]), 3]
+          w2 <- y[(y[,2] == gr[j]), 3]
+          a[i] <- a[i] + (r[j] / (1 - r[i])) * CalcA1(g1, g2, weights = TRUE,
+                                                      w1, w2)
+        }
       }
     }
   }
@@ -889,19 +953,19 @@ CalcAAD1 <- function(y, r = 0, weights = FALSE) {
 
 ################################################################################
 CalcAAPD1 <- function(y, weights = FALSE) {
-# Calculates the A statistic for the average absolute paired deviation for two
-# or more groups. Note: This function is not meant to be called by the user, but
-# it is called by AAPD1.
-#
-# Args:
-#   y       : Matrix of cases (rows) by scores (column 1) and group codes
-#             (column 2) (matrix).
-#   weights : Whether to assign weights to cases (default = FALSE); if
-#             set to TRUE, y contains case weights in column 3.
-#
-# Returns:
-#   a : The A statistic
-#
+  # Calculates the A statistic for the average absolute paired deviation for two
+  # or more groups. Note: This function is not meant to be called by the user, but
+  # it is called by AAPD1.
+  #
+  # Args:
+  #   y       : Matrix of cases (rows) by scores (column 1) and group codes
+  #             (column 2) (matrix).
+  #   weights : Whether to assign weights to cases (default = FALSE); if
+  #             set to TRUE, y contains case weights in column 3.
+  #
+  # Returns:
+  #   a : The A statistic
+  #
   gr <- sort(unique(y[,2]))
   k <- length(gr)
   a <- rep(0, k * (k - 1) / 2)
@@ -924,20 +988,20 @@ CalcAAPD1 <- function(y, weights = FALSE) {
 
 ################################################################################
 CalcIK1 <- function(y, ref = 1, weights = FALSE) {
-# Calculates the A statistic while singling out one group for two or more groups.
-# Note: This function is not meant to be called by the user, but it is called by
-# IK1.
-#
-# Args:
-#   y       : Matrix of cases (rows) by scores (column 1) and group codes
-#             (column 2) (matrix).
-#   ref     : Reference group (to compare to all others) (scalar, default = 1).
-#   weights : Whether to assign weights to cases (default = FALSE); if
-#             set to TRUE, y contains case weights in column 3.
-#
-# Returns:
-#   a : The A statistic
-#
+  # Calculates the A statistic while singling out one group for two or more groups.
+  # Note: This function is not meant to be called by the user, but it is called by
+  # IK1.
+  #
+  # Args:
+  #   y       : Matrix of cases (rows) by scores (column 1) and group codes
+  #             (column 2) (matrix).
+  #   ref     : Reference group (to compare to all others) (scalar, default = 1).
+  #   weights : Whether to assign weights to cases (default = FALSE); if
+  #             set to TRUE, y contains case weights in column 3.
+  #
+  # Returns:
+  #   a : The A statistic
+  #
   g1 <- y[(y[,2] == ref), 1]
   g2 <- y[(y[,2] != ref), 1]
   if (!weights) {
@@ -952,21 +1016,21 @@ CalcIK1 <- function(y, ref = 1, weights = FALSE) {
 
 ################################################################################
 CalcOrd1 <- function(y, weights = FALSE, increase = FALSE) {
-# Calculates the ordinal comparison of the A statistic for two or more groups.
-# Note: This function is not meant to be called by the user, but it is called by
-# AOrd1.
-#
-# Args:
-#   y        : Matrix of cases (rows) by scores (column 1) and group codes
-#              (column 2) (matrix).
-#   weights  : Whether to assign weights to cases (default = FALSE); if
-#              set to TRUE, y contains case weights in column 3.
-#   increase : Set to TRUE if scores are predicted to increase with group codes
-#              (default = FALSE).
-#
-# Returns:
-#   a : The A statistic
-#
+  # Calculates the ordinal comparison of the A statistic for two or more groups.
+  # Note: This function is not meant to be called by the user, but it is called by
+  # AOrd1.
+  #
+  # Args:
+  #   y        : Matrix of cases (rows) by scores (column 1) and group codes
+  #              (column 2) (matrix).
+  #   weights  : Whether to assign weights to cases (default = FALSE); if
+  #              set to TRUE, y contains case weights in column 3.
+  #   increase : Set to TRUE if scores are predicted to increase with group codes
+  #              (default = FALSE).
+  #
+  # Returns:
+  #   a : The A statistic
+  #
   gr <- sort(unique(y[,2]))
   k <- length(gr)
   a <- rep(0, k - 1)
@@ -974,7 +1038,7 @@ CalcOrd1 <- function(y, weights = FALSE, increase = FALSE) {
     g1 <- y[(y[,2] == gr[i]), 1]
     g2 <- y[(y[,2] == gr[i + 1]), 1]
     if (!weights) {
-    	  a[i] <- CalcA1(g1, g2)
+      a[i] <- CalcA1(g1, g2)
     } else {
       w1 <- y[(y[,2] == gr[i]), 3]
       w2 <- y[(y[,2] == gr[i + 1]), 3]
@@ -990,17 +1054,17 @@ CalcOrd1 <- function(y, weights = FALSE, increase = FALSE) {
 
 ################################################################################
 CalcA2 <- function(y1, y2, weights = FALSE, w = 0) {
-# Calculates the A statistic for 2 correlated samples.
-#
-# Args:
-#   y1     : Scores for sample 1 (vector).
-#   y2     : Scores for sample 2 (vector).
-#   weights: Whether to weight cases (default = FALSE).
-#   w      : Weights for cases (optional) (vector, default is 0).
-#
-# Returns:
-# a : The A statistic
-#
+  # Calculates the A statistic for 2 correlated samples.
+  #
+  # Args:
+  #   y1     : Scores for sample 1 (vector).
+  #   y2     : Scores for sample 2 (vector).
+  #   weights: Whether to weight cases (default = FALSE).
+  #   w      : Weights for cases (optional) (vector, default is 0).
+  #
+  # Returns:
+  # a : The A statistic
+  #
   n <- length(y1)
   if (!weights)
     w <- rep(1, n)
@@ -1012,20 +1076,20 @@ CalcA2 <- function(y1, y2, weights = FALSE, w = 0) {
 
 ################################################################################
 CalcAAD2 <- function(y, r = 0, weights = FALSE) {
-# Calculates the A statistic for the average absolute deviation for two or more
-# correlated samples. Note: This function is not meant to be called by the user,
-# but it is called by AAD2.
-#
-# Args:
-#   y       : Matrix of scores with each sample in its own column (matrix).
-#   r       : Vector of proportions (vector, default = 0, represents equal
-#             proportions).
-#   weights : Whether to assign weights to cases (default = FALSE); if
-#             set to TRUE, y contains case weights in final column.
-#
-# Returns:
-#   a : The A statistic
-#
+  # Calculates the A statistic for the average absolute deviation for two or more
+  # correlated samples. Note: This function is not meant to be called by the user,
+  # but it is called by AAD2.
+  #
+  # Args:
+  #   y       : Matrix of scores with each sample in its own column (matrix).
+  #   r       : Vector of proportions (vector, default = 0, represents equal
+  #             proportions).
+  #   weights : Whether to assign weights to cases (default = FALSE); if
+  #             set to TRUE, y contains case weights in final column.
+  #
+  # Returns:
+  #   a : The A statistic
+  #
   k <- dim(y)[2]
   if (weights)
     k <- k - 1
@@ -1044,7 +1108,7 @@ CalcAAD2 <- function(y, r = 0, weights = FALSE) {
         } else {
           w <- y[, k + 1]
           a[i] <- a[i] + (r[j] / (1 - r[i])) * CalcA2(v1, v2,
-                  weights = TRUE, w)
+                                                      weights = TRUE, w)
         }
       }
     }
@@ -1054,53 +1118,53 @@ CalcAAD2 <- function(y, r = 0, weights = FALSE) {
 
 ################################################################################
 CalcAAPD2 <- function(y, weights = FALSE) {
-# Calculates the A statistic for the average absolute paired deviation for two
-# or more correlated samples. Note: This function is not meant to be called by
-# the user, but it is called by AAPD2.
-#
-# Args:
-#   y       : Matrix of scores with each sample in its own column (matrix).
-#   weights : Whether to assign weights to cases (default = FALSE); if
-#             set to TRUE, y contains case weights in final column.
-#
-# Returns:
-#   a : The A statistic
-#
+  # Calculates the A statistic for the average absolute paired deviation for two
+  # or more correlated samples. Note: This function is not meant to be called by
+  # the user, but it is called by AAPD2.
+  #
+  # Args:
+  #   y       : Matrix of scores with each sample in its own column (matrix).
+  #   weights : Whether to assign weights to cases (default = FALSE); if
+  #             set to TRUE, y contains case weights in final column.
+  #
+  # Returns:
+  #   a : The A statistic
+  #
   k <- dim(y)[2]
   if (weights)
     k <- k - 1
   a <- rep(0, k * (k - 1) / 2)
   m <- 0
   for (i in 1:(k - 1))
-  for (j in (i + 1):k) {
-    m <- m + 1
-    v1 <- y[, i]
-    v2 <- y[, j]
-    if (!weights) {
-      a[m] <- CalcA2(v1, v2)
-    } else {
-       w <- y[, k + 1]
-       a[m] <- CalcA2(v1, v2, weights = TRUE, w)
+    for (j in (i + 1):k) {
+      m <- m + 1
+      v1 <- y[, i]
+      v2 <- y[, j]
+      if (!weights) {
+        a[m] <- CalcA2(v1, v2)
+      } else {
+        w <- y[, k + 1]
+        a[m] <- CalcA2(v1, v2, weights = TRUE, w)
+      }
     }
-  }
   return(mean(abs(a - .5)) + .50)
 }
 
 ################################################################################
 CalcIK2 <- function(y, ref = 1, weights = FALSE) {
-# Calculates the A statistic while singling out one group for two or more
-# correlated samples. Note: This function is not meant to be called by the user,
-# but it is called by IK2.
-#
-# Args:
-#   y       : Matrix of scores with each sample in its own column (matrix).
-#   ref     : reference group (to compare to all others) (scalar, default = 1).
-#   weights : Whether to assign weights to cases (default = FALSE); if
-#             set to TRUE, y contains case weights in final column.
-#
-# Returns:
-#   a : The A statistic
-#
+  # Calculates the A statistic while singling out one group for two or more
+  # correlated samples. Note: This function is not meant to be called by the user,
+  # but it is called by IK2.
+  #
+  # Args:
+  #   y       : Matrix of scores with each sample in its own column (matrix).
+  #   ref     : reference group (to compare to all others) (scalar, default = 1).
+  #   weights : Whether to assign weights to cases (default = FALSE); if
+  #             set to TRUE, y contains case weights in final column.
+  #
+  # Returns:
+  #   a : The A statistic
+  #
   k <- dim(y)[2]
   if (weights)
     k <- k - 1
@@ -1117,20 +1181,20 @@ CalcIK2 <- function(y, ref = 1, weights = FALSE) {
 
 ################################################################################
 CalcOrd2 <- function(y, weights = FALSE, increase = FALSE) {
-# Calculates the ordinal comparison of the A statistic for two or more
-# correlated samples. Note: This function is not meant to be called by the user,
-# but it is called by AOrd2.
-#
-# Args:
-#   y        : Matrix of scores with each sample in its own column (matrix).
-#   weights  : Whether to assign weights to cases (default = FALSE); if
-#              set to TRUE, y contains case weights in final column.
-#   increase : Set to TRUE if scores are predicted to increase with group codes
-#              (default = FALSE).
-#
-# Returns:
-#   a : The A statistic
-#
+  # Calculates the ordinal comparison of the A statistic for two or more
+  # correlated samples. Note: This function is not meant to be called by the user,
+  # but it is called by AOrd2.
+  #
+  # Args:
+  #   y        : Matrix of scores with each sample in its own column (matrix).
+  #   weights  : Whether to assign weights to cases (default = FALSE); if
+  #              set to TRUE, y contains case weights in final column.
+  #   increase : Set to TRUE if scores are predicted to increase with group codes
+  #              (default = FALSE).
+  #
+  # Returns:
+  #   a : The A statistic
+  #
   n <- dim(y)[1]
   k <- dim(y)[2]
   if (weights)
@@ -1140,7 +1204,7 @@ CalcOrd2 <- function(y, weights = FALSE, increase = FALSE) {
     v1 <- y[, i]
     v2 <- y[, i + 1]
     if (!weights) {
-    	  a[i] <- CalcA2(v1, v2)
+      a[i] <- CalcA2(v1, v2)
     } else {
       w <- y[, k + 1]
       a[i] <- CalcA2(v1, v2, weights = TRUE, w)

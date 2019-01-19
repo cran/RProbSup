@@ -6,7 +6,7 @@
 }
 \usage{
 Ord1(y, weights = FALSE, increase = FALSE, n.bootstrap = 1999,
-conf.level = .95,method = "BCA", seed = 1)
+conf.level = .95, ci.method = 1, seed = 1)
 }
 \arguments{
   \item{y}{Matrix of cases (rows) by scores (column 1) and group codes (column 2) (matrix).}
@@ -14,11 +14,11 @@ conf.level = .95,method = "BCA", seed = 1)
   \item{increase}{Set to TRUE if scores are predicted to increase with group codes (default = FALSE).}
   \item{n.bootstrap}{Number of bootstrap samples (scalar, default = 1999).}
   \item{conf.level}{Confidence level (scalar, default = .95).}
-  \item{method}{Method used to construct confidence interval (character, default = "BCA", user can also call "percentile").}
+  \item{ci.method}{Method used to construct confidence interval (scalar, default = 1 (for BCA), user can also call 2 (for percentile).}
   \item{seed}{Random number seed (scalar, default = 1).}
 }
 \value{
-Nothing; displays the A statistic, its estimated standard error, and the confidence interval.
+A vector containing the A statistic, its estimated standard error, and the upper and lower bounds of the confidence interval.
 }
 \references{Ruscio (2008) & Ruscio and Mullen (2012) & Ruscio and Gera (2013)
 }
