@@ -47,26 +47,26 @@ A <- function(data, design = 1, statistic = 1, weights = FALSE, w = 0,
     x <- AAPD1(data, weights, n.bootstrap, conf.level, ci.method, seed)
   }
   if ((design == 1) & (statistic == 4)) {
-    x <- IK1(y, ref, weights, n.bootstrap, conf.level, ci.method, seed)
+    x <- IK1(data, ref, weights, n.bootstrap, conf.level, ci.method, seed)
   }
   if ((design == 1) & (statistic == 5)) {
-    x <- Ord1(y, weights, increase, n.bootstrap, conf.level, ci.method, seed)
+    x <- Ord1(data, weights, increase, n.bootstrap, conf.level, ci.method, seed)
   }
   if ((design == 2) & (statistic == 1)) {
     x <- A2(data[(data[, 2] == 1), 1], data[(data[, 2] == 2), 1], weights, w,
             n.bootstrap, conf.level, ci.method, seed)
   }
   if ((design == 2) & (statistic == 2)) {
-    x <- AAD2(y, r, weights, n.bootstrap, conf.level, ci.method, seed)
+    x <- AAD2(data, r, weights, n.bootstrap, conf.level, ci.method, seed)
   }
   if ((design == 2) & (statistic == 3)) {
-    x <- AAPD2(y, weights, n.bootstrap, conf.level, ci.method, seed)
+    x <- AAPD2(data, weights, n.bootstrap, conf.level, ci.method, seed)
   }
   if ((design == 2) & (statistic == 4)) {
-    x <- IK2(y, ref, weights, n.bootstrap, conf.level, ci.method, seed)
+    x <- IK2(data, ref, weights, n.bootstrap, conf.level, ci.method, seed)
   }
   if ((design == 2) & (statistic == 5)) {
-    x <- Ord2(y, weights, increase, n.bootstrap, conf.level, ci.method, seed)
+    x <- Ord2(data, weights, increase, n.bootstrap, conf.level, ci.method, seed)
   }
   cat("     A: ", round(x[1], 3), "\n")
   cat("    SE: ", round(x[2], 3), "\n")
