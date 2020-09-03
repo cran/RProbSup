@@ -53,8 +53,7 @@ A <- function(data, design = 1, statistic = 1, weights = FALSE, w = 0,
     x <- Ord1(data, weights, increase, n.bootstrap, conf.level, ci.method, seed)
   }
   if ((design == 2) & (statistic == 1)) {
-    x <- A2(data[(data[, 2] == 1), 1], data[(data[, 2] == 2), 1], weights, w,
-            n.bootstrap, conf.level, ci.method, seed)
+    x <- A2(data[, 1], data[, 2], weights, w, n.bootstrap, conf.level, ci.method, seed)
   }
   if ((design == 2) & (statistic == 2)) {
     x <- AAD2(data, r, weights, n.bootstrap, conf.level, ci.method, seed)
