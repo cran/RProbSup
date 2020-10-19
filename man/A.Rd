@@ -27,7 +27,16 @@ n.bootstrap = 1999, conf.level = .95, ci.method = 1, seed = 1)
   \item{seed}{Random number seed (scalar, default = 1).}
 }
 \value{
-Nothing; displays the A statistic, its estimated standard error, and the confidence interval.
+Returns list object with the following elements:
+A           : A statistic (scalar).
+SE          : Standard error of A (scalar).
+ci.lower    : Lower bound of confidence interval (scalar).
+ci.upper    : Upper bound of confidence interval (scalar).
+conf.level  : Confidence level (scalar).
+n.bootstrap : Number of bootstrap samples (scalar).
+boot.method : Bootstrap method ("BCA" or "percentile").
+n           : Sample size (after missing data removed; scalar).
+n.missing   : Number of cases of missing data, removed listewise (scalar).
 }
 \references{Ruscio (2008) & Ruscio and Mullen (2012) & Ruscio and Gera (2013)
 }

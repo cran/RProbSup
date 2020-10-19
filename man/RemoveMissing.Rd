@@ -12,7 +12,7 @@ RemoveMissing(data)
   \item{data}{For a between subjects design, a matrix of cases (rows) by scores (column 1) and group codes (column 2). For a within subjects design, a matrix of scores with each sample in its own column (matrix).}
 }
 \value{
-A vector containing the A statistic, its estimated standard error, and the upper and lower bounds of the confidence interval.
+Data matrix with any missing data removed using listwise deletion of cases.
 }
 \references{Ruscio (2008) & Ruscio and Mullen (2012) & Ruscio and Gera (2013)
 }
